@@ -19,13 +19,23 @@ struct BtreeNode
         this->n = 0;
     }
 
+    void insertKeyInLeaf(T newKey/*, BtreeNode<T> *node*/) {
+        /*this->*/position++;
+        /*this->*/keys[/*node->*/position] = newKey;
+        /*this->*/n++;
+
+    }
+
+    void deleteLastKey() {
+        position--;
+        n--;
+    }
+
     bool insert(T newKey) {
 
         // if the node is leaf
         if (children[0] == nullptr) {
-            position++;
-            keys[position] = newKey;
-            n++;
+            insertKeyInLeaf(newKey);
 
             // resort the nodes keys
             for (int i = position; i > 0; i--) {
@@ -50,7 +60,7 @@ struct BtreeNode
 
                 int oldi = i;
                 //splitted node will store the values and children after mid
-                BtreeNode<T>* newSplittedNode = split(children[i], &mid); 
+                BtreeNode<T>* newSplittedNode = splitAfterMid(children[i], &mid); 
 
                 //get location to put mid value
                 while ( i < n && mid > keys[i]) {
@@ -86,45 +96,43 @@ struct BtreeNode
         } 
     }
 
-    BtreeNode<T>* split(BtreeNode* node, T* mid) {
-        int NumberOfKeys = node->n;
+    BtreeNode<T>* splitAfterMid(BtreeNode* oldnode, T* mid) {
         
-        BtreeNode<T>* newNode = new BtreeNode<T>(t);
+        int KeysInNode = oldnode->n;
+        int midIndex = KeysInNode / 2;
+        *mid = oldnode->keys[midIndex];
+        
+        BtreeNode<T>* newnode = new BtreeNode<T>(t);
 
-        int midIndex = NumberOfKeys / 2;
-        *mid = node->keys[midIndex];
-        
         int i;
+        // fill splited new oldnode with big oldnode values (t-1)
+        for (i = midIndex + 1; i < KeysInNode; i++) {
+            newnode->position++;
+            newnode->keys[newnode->position] = oldnode->keys[i];
+            newnode->children[newnode->position] = oldnode->children[i];
 
-        // fill splited new node with big oldnode values (t-1)
-        for (i = midIndex + 1; i < NumberOfKeys; i++) {
-            newNode->position++;
-            newNode->keys[newNode->position] = node->keys[i];
-            newNode->children[newNode->position] = node->children[i];
+            newnode->n++;
+            oldnode->deleteLastKey();
 
-            newNode->n++;
-            node->position--;
-            node->n--;
-
-            node->children[i] = nullptr;
+            oldnode->children[i] = nullptr;
         }
 
+        // because the mid value is also removed from the old oldnode
+        oldnode->deleteLastKey();
+
         //now we set the last child because children are t
-        newNode->children[newNode->position + 1] = node->children[NumberOfKeys];
-        node->children[NumberOfKeys] = nullptr;
+        newnode->children[newnode->position + 1] = oldnode->children[KeysInNode];
+        oldnode->children[KeysInNode] = nullptr;
 
-        // because the mid value is also removed from the old node
-        node->position--;
-        node->n--; 
 
-        return newNode;
+        return newnode;
     }
 
     void print() {
-        printRec(0);
+        printNodeByNode(0);
     }
 
-    void printRec(int depth) {
+    void printNodeByNode(int depth) {
         
         for (int i = 0; i < depth; ++i)
             cout << "  "; 
@@ -138,13 +146,13 @@ struct BtreeNode
 
         for (int i = 0; i <= n; i++) {
             if (children[i] != nullptr) {
-                children[i]->printRec(depth + 1);
+                children[i]->printNodeByNode(depth + 1);
             }
         }
     }
 };
 
-template <class T, int Order>
+template <class T, int bTreeOrder>
 class BTree
 {
 private:
@@ -153,24 +161,22 @@ private:
     // order of the tree
     int t;
     // tracking curr num of elements in the entire tree
-    int numOfElements = 0; 
+    // int numOfElements = 0;
 
 public:
     BTree() {
-        this->t = Order;
+        this->t = bTreeOrder;
         this->root = nullptr;
     }
 
     void Insert(T value) {
-        numOfElements++;
+        // numOfElements++;
 
         // if Tree is empty
         if (root == nullptr) {
             root = new BtreeNode<T>(t);
 
-            root->position++;
-            root->keys[root->position] = value;
-            root->n = 1;
+            root->insertKeyInLeaf(value);
 
         }
         // if tree not empty
@@ -180,17 +186,15 @@ public:
             if (root->insert(value)) {
                 T mid;
 
-                BtreeNode<T>* newSplittedNode = root->split(root, &mid);
-                BtreeNode<T>* newNode = new BtreeNode<T>(t);
+                BtreeNode<T>* newSplittedNode = root->splitAfterMid(root, &mid);
+                BtreeNode<T>* newnode = new BtreeNode<T>(t);
 
-                newNode->position++;
-                newNode->keys[newNode->position] = mid;
-                newNode->n = 1;
+                newnode->insertKeyInLeaf(mid);
 
-                newNode->children[0] = root;
-                newNode->children[1] = newSplittedNode;
+                newnode->children[0] = root;
+                newnode->children[1] = newSplittedNode;
                 
-                root = newNode;
+                root = newnode;
             }
         }
     }
